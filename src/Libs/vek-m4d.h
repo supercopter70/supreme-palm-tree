@@ -1,3 +1,5 @@
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include "cpat.h"
@@ -84,5 +86,37 @@
 #define MASK_TIMER_BUSY_TIME            0b00010000
 #define MASK_TIMER_GAP_TIME             0b00100000
 
+
+#define BUFFER_SZ 16
+
+typedef enum 
+{
+    VEK_INIT,
+    VEK_IDLE,
+    VEK_REQUEST,
+    VEK_RESPONSE,
+    VEK_DATA_GET
+} VEK_STATE;
+
+typedef struct
+{
+    DRV_HANDLE handleRS485;
+    VEK_STATE state;
+    uint8_t vek_rx_buffer[BUFFER_SZ];
+	uint8_t rx_count;
+    uint8_t vekID;
+    uint8_t ctl;
+    uint8_t param;
+} VEK_DATA;
+
+uint8_t vekLoopState;
+uint8_t vekLoopLastState;
+
 int vekRequest(int address, int control, int data);
 int shortTelegram(int address, int control);
+
+void VEK_Initialize(void);
+void VEK_Task(void);
+void vekLoopStatusGet(int vekID);
+void vekLoopShow(void);
+void vekLoopStatusGet(int loopNr);

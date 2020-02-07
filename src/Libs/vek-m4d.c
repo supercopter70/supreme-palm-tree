@@ -1,16 +1,6 @@
 #include "vek-m4d.h"
 
-char test_buffer[] = {0x02,0x03,0x03,0x02,0x51,0x01,0x04,0x56,0x04};
-
-void writeTest(void){
-    int i = 0;
-    while(i<sizeof(test_buffer)){
-        //while(!DRV_USART0_TransmitBufferIsFull);
-        DRV_USART1_WriteByte(test_buffer[i]);
-        //delay_ms(1000);
-        i++;
-    }    
-}
+VEK_DATA vekData;
 
 int shortTelegram(int address, int control){
         char telegram[5];
@@ -21,7 +11,7 @@ int shortTelegram(int address, int control){
         telegram[4] = EOT;
         int i = 0;
         while(i<strlen(telegram)){//sizeof?
-            DRV_USART1_WriteByte(telegram[i]);
+            DRV_USART_WriteByte(vekData.handleRS485, telegram[i]);
             i++;
         }
 }
@@ -41,28 +31,93 @@ int vekRequest(int address, int control, int data){
         telegram[8] = EOT;
         int i = 0;
         while(i<(size+6)){//sizeof?
-            DRV_USART1_WriteByte(telegram[i]);
+            DRV_USART_WriteByte(vekData.handleRS485, telegram[i]);
             i++;
         }
 }
 
-int vekLoopStatus(int loopNumber){
-    #define DATA_OFFSET 7
-    int vekID = 0;
-    int c = 0;
-    char b[64];
-    if(!U2STAbits.URXDA){//if rx buffer empty
-        vekRequest(vekID, REQ_DATA, MASK_LOOP_STATUS);
-        while(!U2STAbits.URXDA);//wait for rcv char
-        while(U2STAbits.URXDA){//rcv till empty buffer
+int vekResponse(){
+    vekData.rx_count = 0;
+    bool DataLeft = 0;
+    if(!DRV_USART_ReceiverBufferIsEmpty(vekData.handleRS485))
+        DataLeft = 1;
+    while (DataLeft){
+        vekData.vek_rx_buffer[vekData.rx_count] = DRV_USART_ReadByte(vekData.handleRS485);
+    }
+}
+
+void VEK_Initialize(void){
+    vekData.state = VEK_INIT;
+    vekData.handleRS485 = DRV_HANDLE_INVALID;
+    vekLoopState = 0b00000000;
+    vekLoopLastState = vekLoopState;
+}
+
+void VEK_Task(void){
+    switch (vekData.state)
+    {
+        default:
+        case VEK_INIT:
+        {
+            int vekialized = 1;
+            vekData.rx_count = 0;
+            if (vekData.handleRS485 == DRV_HANDLE_INVALID)
+            {
+                vekData.handleRS485 = DRV_USART_Open(0, DRV_IO_INTENT_READWRITE|DRV_IO_INTENT_NONBLOCKING);
+                vekialized &= ( DRV_HANDLE_INVALID != vekData.handleRS485 );
+            }        
+            if (vekialized)
+            {
+                vekData.state = VEK_IDLE;
+            }    
+        }break;
+        case VEK_IDLE:
+        {
             
-            b[c] = DRV_USART1_ReadByte();
-            c++;
-        }            
-        b[c] = '\0';
+            LEDgToggle();
+        }break;
+        case VEK_REQUEST:
+        {
+            vekRequest(vekData.vekID, vekData.ctl, vekData.param);
+            vekData.state = VEK_RESPONSE;  
+        }break;
+         case VEK_RESPONSE:
+        {       
+
+        }break;
         
-        return b[loopNumber + DATA_OFFSET];
-        
-    }else
-        return -1;
+        case VEK_DATA_GET:
+        {
+            LEDwToggle();
+            vekData.rx_count = 0;
+            vekData.state = VEK_IDLE;
+        }break;
+    }
+}
+
+void vekDataProcess(){
+    vekLoopLastState = vekLoopState;
+}
+
+void vekLoopStatusRequest(int vekID){
+    vekData.vekID = vekID;
+    vekData.ctl = REQ_DATA;
+    vekData.param = MASK_LOOP_STATUS;
+    vekData.state = VEK_REQUEST;
+}
+
+void vekLoopShow(){
+    char txt[17];
+    if(vekLoopState != vekLoopLastState){
+        LCD_Clear();
+        LCD_gotoLine1();
+        LCD_writeString("1 2 3 4 5 6 7 8");
+        sprintf(txt, "%01x %01x %01x %01x %01x %01x %01x %01x", (vekLoopState & 0x80)>>7, (vekLoopState & 0x40)>>6, (vekLoopState & 0x20)>>5, (vekLoopState & 0x10)>>4, (vekLoopState & 0x08)>>3, (vekLoopState & 0x04)>>2, (vekLoopState & 0x02)>>1, (vekLoopState & 0x01)>>0);
+        LCD_gotoLine2();
+        LCD_writeString(txt);
+    }
+}
+
+void vekLoopStatusGet(int loopNr){
+    
 }

@@ -155,7 +155,8 @@ void SYS_Initialize ( void* data )
     SYS_INT_Initialize();
 
     /* Initialize Middleware */
-
+    VEK_Initialize();
+    
     /* Enable Global Interrupts */
     SYS_INT_Enable();
 

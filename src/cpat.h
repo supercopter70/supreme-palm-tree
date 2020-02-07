@@ -115,8 +115,8 @@ typedef struct
     /* The application's current state */
     CPAT_STATES state;
 
-    DRV_HANDLE handleUSART0;
-    DRV_HANDLE handleUSART1;
+    DRV_HANDLE handleSerial;
+
 	int tx_count;
 	int rx_count;
 

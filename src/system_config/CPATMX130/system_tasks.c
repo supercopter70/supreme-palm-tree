@@ -82,7 +82,8 @@ void SYS_Tasks ( void )
     DRV_USART_TasksReceive(sysObj.drvUsart1);
 
     /* Maintain Middleware & Other Libraries */
-
+    VEK_Task();
+    
     /* Maintain the application's state machine. */
     CPAT_Tasks();
 }
